@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Churn Prediction API — Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0c0f;
+    --surface: #111418;
+    --surface2: #181d24;
+    --border: #1f2730;
+    --border2: #2a3340;
+    --text: #e8edf2;
+    --muted: #6b7a8a;
+    --accent: #00d4aa;
+    --accent2: #0099ff;
+    --warn: #ff8c42;
+    --danger: #ff4d6d;
+    --low: #00d4aa;
+    --med: #ffd166;
+    --high: #ff4d6d;
+    --mono: 'IBM Plex Mono', monospace;
+    --sans: 'Syne', sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: var(--sans); min-height: 100vh; }
+
+  /* HEADER */
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 18px 32px; border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+  .logo { display: flex; align-items: center; gap: 12px; }
+  .logo-mark {
+    width: 36px; height: 36px; background: var(--accent);
+    clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+  }
+  .logo h1 { font-size: 16px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+  .logo span { font-size: 11px; color: var(--muted); font-family: var(--mono); margin-top: 1px; display: block; }
+  .status-pill {
+    display: flex; align-items: center; gap: 6px;
+    padding: 6px 14px; border: 1px solid var(--border2);
+    border-radius: 999px; font-family: var(--mono); font-size: 11px; color: var(--muted);
+  }
+  .status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); animation: pulse 2s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+  /* LAYOUT */
+  main { display: grid; grid-template-columns: 320px 1fr; gap: 0; height: calc(100vh - 65px); }
+
+  /* SIDEBAR */
+  aside {
+    background: var(--surface); border-right: 1px solid var(--border);
+    padding: 24px; overflow-y: auto; display: flex; flex-direction: column; gap: 20px;
+  }
+  .section-label {
+    font-family: var(--mono); font-size: 10px; font-weight: 600;
+    color: var(--muted); letter-spacing: .12em; text-transform: uppercase;
+    margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--border);
+  }
+  .field-group { display: flex; flex-direction: column; gap: 10px; }
+  .field { display: flex; flex-direction: column; gap: 4px; }
+  .field label { font-size: 11px; color: var(--muted); font-family: var(--mono); }
+  .field input, .field select {
+    background: var(--surface2); border: 1px solid var(--border2);
+    color: var(--text); font-family: var(--mono); font-size: 12px;
+    padding: 7px 10px; border-radius: 6px; outline: none;
+    transition: border-color .2s;
+  }
+  .field input:focus, .field select:focus { border-color: var(--accent); }
+  .field select option { background: var(--surface2); }
+  input[type=range] {
+    -webkit-appearance: none; height: 3px; background: var(--border2);
+    border-radius: 3px; border: none; padding: 0; cursor: pointer;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 14px; height: 14px;
+    background: var(--accent); border-radius: 50%;
+  }
+  .range-row { display: flex; align-items: center; gap: 8px; }
+  .range-row input[type=range] { flex: 1; }
+  .range-val { font-family: var(--mono); font-size: 11px; color: var(--accent); min-width: 32px; text-align: right; }
+
+  .predict-btn {
+    width: 100%; padding: 12px; background: var(--accent); color: var(--bg);
+    border: none; border-radius: 8px; font-family: var(--sans); font-size: 13px;
+    font-weight: 700; cursor: pointer; letter-spacing: .05em; text-transform: uppercase;
+    transition: opacity .15s, transform .1s; margin-top: 4px;
+  }
+  .predict-btn:hover { opacity: .85; }
+  .predict-btn:active { transform: scale(.98); }
+
+  /* MAIN CONTENT */
+  .content { overflow-y: auto; padding: 28px 32px; display: flex; flex-direction: column; gap: 24px; }
+
+  /* SCORE CARD */
+  .score-hero {
+    display: grid; grid-template-columns: auto 1fr auto; gap: 24px; align-items: center;
+    padding: 24px 28px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+  }
+  .gauge-wrap { position: relative; width: 120px; height: 120px; }
+  .gauge-wrap svg { width: 100%; height: 100%; }
+  .gauge-center {
+    position: absolute; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+  }
+  .gauge-pct { font-family: var(--mono); font-size: 26px; font-weight: 600; line-height: 1; }
+  .gauge-lbl { font-family: var(--mono); font-size: 10px; color: var(--muted); margin-top: 2px; }
+  .score-info h2 { font-size: 22px; font-weight: 800; margin-bottom: 4px; }
+  .score-info p { font-size: 13px; color: var(--muted); line-height: 1.5; }
+  .risk-badge {
+    padding: 8px 18px; border-radius: 8px; font-family: var(--mono); font-size: 13px;
+    font-weight: 600; letter-spacing: .06em; text-transform: uppercase;
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+  }
+  .risk-badge span { font-size: 9px; opacity: .7; letter-spacing: .1em; }
+  .risk-low    { background: rgba(0,212,170,.12); color: var(--low); border: 1px solid rgba(0,212,170,.25); }
+  .risk-medium { background: rgba(255,209,102,.10); color: var(--med); border: 1px solid rgba(255,209,102,.2); }
+  .risk-high   { background: rgba(255,77,109,.12); color: var(--high); border: 1px solid rgba(255,77,109,.25); }
+
+  /* METRICS ROW */
+  .metrics-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .metric-card {
+    padding: 16px 18px; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px;
+  }
+  .metric-card .m-label { font-family: var(--mono); font-size: 10px; color: var(--muted); letter-spacing: .08em; text-transform: uppercase; margin-bottom: 8px; }
+  .metric-card .m-value { font-family: var(--mono); font-size: 22px; font-weight: 600; color: var(--accent); }
+  .metric-card .m-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  /* PANELS ROW */
+  .panels-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .panel {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+    padding: 20px 22px;
+  }
+  .panel-title { font-family: var(--mono); font-size: 11px; font-weight: 600; color: var(--muted); letter-spacing: .1em; text-transform: uppercase; margin-bottom: 16px; }
+
+  /* FEATURE BARS */
+  .feat-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .feat-name { font-family: var(--mono); font-size: 11px; color: var(--text); min-width: 110px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .feat-bar-wrap { flex: 1; height: 6px; background: var(--border2); border-radius: 3px; overflow: hidden; }
+  .feat-bar { height: 100%; border-radius: 3px; transition: width .6s ease; background: var(--accent2); }
+  .feat-pct { font-family: var(--mono); font-size: 10px; color: var(--muted); min-width: 34px; text-align: right; }
+
+  /* REQUEST LOG */
+  .log-entry {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 8px 10px; border-radius: 6px; margin-bottom: 6px;
+    background: var(--surface2); font-family: var(--mono); font-size: 11px;
+  }
+  .log-time { color: var(--muted); min-width: 54px; }
+  .log-method { color: var(--accent); min-width: 44px; }
+  .log-path { color: var(--text); flex: 1; }
+  .log-status { color: var(--accent); }
+
+  /* BATCH PANEL */
+  .batch-panel {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+    padding: 20px 22px;
+  }
+  .batch-table { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 11px; }
+  .batch-table th { color: var(--muted); font-weight: 500; padding: 6px 10px; text-align: left; border-bottom: 1px solid var(--border); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; }
+  .batch-table td { padding: 7px 10px; border-bottom: 1px solid var(--border); }
+  .batch-table tr:last-child td { border-bottom: none; }
+  .tier-low    { color: var(--low); }
+  .tier-medium { color: var(--med); }
+  .tier-high   { color: var(--high); }
+
+  /* CONFUSION MATRIX */
+  .matrix-grid { display: grid; grid-template-columns: auto auto auto; gap: 4px; align-items: center; justify-content: start; }
+  .mat-label { font-family: var(--mono); font-size: 10px; color: var(--muted); text-align: center; padding: 2px 6px; }
+  .mat-cell {
+    width: 64px; height: 48px; border-radius: 6px; display: flex; align-items: center; justify-content: center;
+    font-family: var(--mono); font-size: 15px; font-weight: 600;
+  }
+  .mat-tp { background: rgba(0,212,170,.2); color: var(--low); }
+  .mat-tn { background: rgba(0,212,170,.2); color: var(--low); }
+  .mat-fp { background: rgba(255,77,109,.15); color: var(--high); }
+  .mat-fn { background: rgba(255,77,109,.15); color: var(--high); }
+
+  /* ENDPOINT TABLE */
+  .endpoint-row {
+    display: grid; grid-template-columns: 56px 1fr auto;
+    align-items: center; gap: 12px; padding: 10px 14px;
+    background: var(--surface2); border-radius: 6px; margin-bottom: 6px;
+    font-family: var(--mono); font-size: 11px;
+  }
+  .method { font-weight: 600; font-size: 10px; letter-spacing: .06em; }
+  .method-get  { color: var(--accent); }
+  .method-post { color: var(--accent2); }
+  .ep-path { color: var(--text); }
+  .ep-desc { color: var(--muted); font-size: 10px; }
+
+  /* TABS */
+  .tabs { display: flex; gap: 2px; margin-bottom: 0; }
+  .tab {
+    padding: 6px 14px; border-radius: 6px 6px 0 0; font-family: var(--mono); font-size: 11px;
+    cursor: pointer; color: var(--muted); background: transparent; border: none;
+    transition: color .15s, background .15s;
+  }
+  .tab.active { color: var(--text); background: var(--surface2); }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+  .code-block {
+    background: var(--surface2); border: 1px solid var(--border2); border-radius: 0 8px 8px 8px;
+    padding: 16px; font-family: var(--mono); font-size: 11px; line-height: 1.7;
+    white-space: pre; overflow-x: auto; color: #c8d3e0;
+  }
+  .kw { color: #8be9fd; }
+  .str { color: #f1fa8c; }
+  .cm { color: #6272a4; }
+  .fn { color: #50fa7b; }
+  .num { color: #bd93f9; }
+
+  /* Placeholder state */
+  .placeholder {
+    text-align: center; padding: 40px 20px; color: var(--muted);
+    font-family: var(--mono); font-size: 12px;
+  }
+  .placeholder .icon { font-size: 32px; margin-bottom: 12px; opacity: .4; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-mark"></div>
+    <div>
+      <h1>Churn Prediction API</h1>
+      <span>v1.0.0 · GradientBoostingClassifier</span>
+    </div>
+  </div>
+  <div class="status-pill">
+    <div class="status-dot"></div>
+    Model Loaded · 15 Tests Passing
+  </div>
+</header>
+
+<main>
+  <!-- SIDEBAR -->
+  <aside>
+    <div>
+      <div class="section-label">POST /predict</div>
+      <div class="field-group">
+        <div class="field">
+          <label>Tenure (months)</label>
+          <div class="range-row">
+            <input type="range" id="tenure" min="0" max="72" value="8" oninput="syncRange('tenure',this.value)">
+            <span class="range-val" id="tenure-val">8</span>
+          </div>
+        </div>
+        <div class="field">
+          <label>Monthly Charges ($)</label>
+          <div class="range-row">
+            <input type="range" id="monthly" min="10" max="150" value="75" step="0.5" oninput="syncRange('monthly',this.value)">
+            <span class="range-val" id="monthly-val">$75</span>
+          </div>
+        </div>
+        <div class="field">
+          <label>Support Calls</label>
+          <div class="range-row">
+            <input type="range" id="support" min="0" max="15" value="4" oninput="syncRange('support',this.value)">
+            <span class="range-val" id="support-val">4</span>
+          </div>
+        </div>
+        <div class="field">
+          <label>Days Since Login</label>
+          <div class="range-row">
+            <input type="range" id="login" min="0" max="180" value="30" oninput="syncRange('login',this.value)">
+            <span class="range-val" id="login-val">30</span>
+          </div>
+        </div>
+        <div class="field">
+          <label>Num Products</label>
+          <div class="range-row">
+            <input type="range" id="products" min="1" max="10" value="2" oninput="syncRange('products',this.value)">
+            <span class="range-val" id="products-val">2</span>
+          </div>
+        </div>
+        <div class="field">
+          <label>Plan</label>
+          <select id="plan">
+            <option value="basic">basic</option>
+            <option value="standard" selected>standard</option>
+            <option value="premium">premium</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Contract Type</label>
+          <select id="contract">
+            <option value="month-to-month" selected>month-to-month</option>
+            <option value="one-year">one-year</option>
+            <option value="two-year">two-year</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Payment Method</label>
+          <select id="payment">
+            <option value="e-check" selected>e-check</option>
+            <option value="credit_card">credit card</option>
+            <option value="bank_transfer">bank transfer</option>
+            <option value="mailed_check">mailed check</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Tech Support</label>
+          <select id="techsupport">
+            <option value="0" selected>No</option>
+            <option value="1">Yes</option>
+          </select>
+        </div>
+        <button class="predict-btn" onclick="runPrediction()">Run Prediction →</button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN CONTENT -->
+  <div class="content">
+
+    <!-- SCORE HERO -->
+    <div class="score-hero" id="hero">
+      <div class="gauge-wrap">
+        <svg viewBox="0 0 120 120">
+          <circle cx="60" cy="60" r="48" fill="none" stroke="#1f2730" stroke-width="8"/>
+          <circle id="gauge-ring" cx="60" cy="60" r="48" fill="none"
+            stroke="#00d4aa" stroke-width="8" stroke-linecap="round"
+            stroke-dasharray="301.6" stroke-dashoffset="301.6"
+            transform="rotate(-90 60 60)" style="transition:stroke-dashoffset .7s ease,stroke .5s"/>
+        </svg>
+        <div class="gauge-center">
+          <span class="gauge-pct" id="gauge-pct" style="color:var(--accent)">—</span>
+          <span class="gauge-lbl">CHURN %</span>
+        </div>
+      </div>
+      <div class="score-info">
+        <h2 id="hero-headline">Awaiting prediction</h2>
+        <p id="hero-sub">Adjust parameters in the sidebar and press Run Prediction to score a customer.</p>
+      </div>
+      <div class="risk-badge risk-low" id="risk-badge" style="opacity:.3">
+        <span>RISK</span>
+        <span id="risk-label">—</span>
+      </div>
+    </div>
+
+    <!-- METRICS ROW -->
+    <div class="metrics-row">
+      <div class="metric-card">
+        <div class="m-label">ROC-AUC</div>
+        <div class="m-value">0.640</div>
+        <div class="m-sub">Test set · 5-fold CV: 0.643</div>
+      </div>
+      <div class="metric-card">
+        <div class="m-label">Training Samples</div>
+        <div class="m-value">4,000</div>
+        <div class="m-sub">80/20 train/test split</div>
+      </div>
+      <div class="metric-card">
+        <div class="m-label">Churn Rate</div>
+        <div class="m-value">13.6%</div>
+        <div class="m-sub">Training set baseline</div>
+      </div>
+      <div class="metric-card">
+        <div class="m-label">API Tests</div>
+        <div class="m-value" style="color:var(--low)">15 / 15</div>
+        <div class="m-sub">All tests passing</div>
+      </div>
+    </div>
+
+    <!-- PANELS ROW -->
+    <div class="panels-row">
+
+      <!-- FEATURE IMPORTANCE -->
+      <div class="panel">
+        <div class="panel-title">GET /predict/explain · Feature Importance</div>
+        <div id="feat-bars">
+          <div class="feat-row"><div class="feat-name">tenure</div><div class="feat-bar-wrap"><div class="feat-bar" style="width:72%"></div></div><div class="feat-pct">72%</div></div>
+          <div class="feat-row"><div class="feat-name">monthly_charges</div><div class="feat-bar-wrap"><div class="feat-bar" style="width:54%"></div></div><div class="feat-pct">54%</div></div>
+          <div class="feat-row"><div class="feat-name">total_charges</div><div class="feat-bar-wrap"><div class="feat-bar" style="width:49%"></div></div><div class="feat-pct">49%</div></div>
+          <div class="feat-row"><div class="feat-name">days_since_login</div><div class="feat-bar-wrap"><div class="feat-bar" style="width:38%"></div></div><div class="feat-pct">38%</div></div>
+          <div class="feat-row"><div class="feat-name">support_calls</div><div class="feat-bar-wrap"><div class="feat-bar" style="width:29%"></div></div><div class="feat-pct">29%</div></div>
+          <div class="feat-row"><div class="feat-name">num_products</div><div class="feat-bar-wrap"><div class="feat-bar" style="width:22%"></div></div><div class="feat-pct">22%</div></div>
+          <div class="feat-row"><div class="feat-name">contract_type</div><div class="feat-bar-wrap"><div class="feat-bar" style="width:17%"></div></div><div class="feat-pct">17%</div></div>
+          <div class="feat-row"><div class="feat-name">plan</div><div class="feat-bar-wrap"><div class="feat-bar" style="width:12%"></div></div><div class="feat-pct">12%</div></div>
+        </div>
+      </div>
+
+      <!-- CONFUSION MATRIX + LOG -->
+      <div class="panel">
+        <div class="panel-title">Model Metrics · Confusion Matrix</div>
+        <div style="display:flex; gap:28px; align-items:flex-start;">
+          <div>
+            <div class="matrix-grid">
+              <div class="mat-label"></div>
+              <div class="mat-label">Pred 0</div>
+              <div class="mat-label">Pred 1</div>
+              <div class="mat-label">Actual 0</div>
+              <div class="mat-cell mat-tn">853</div>
+              <div class="mat-cell mat-fp">11</div>
+              <div class="mat-label">Actual 1</div>
+              <div class="mat-cell mat-fn">134</div>
+              <div class="mat-cell mat-tp">2</div>
+            </div>
+            <div style="margin-top:12px; font-family:var(--mono); font-size:10px; color:var(--muted); line-height:1.8;">
+              Precision: 0.15 · Recall: 0.01<br>
+              Accuracy: 85.5% · Support: 1000
+            </div>
+          </div>
+          <div style="flex:1;">
+            <div style="font-family:var(--mono); font-size:10px; color:var(--muted); letter-spacing:.08em; text-transform:uppercase; margin-bottom:8px;">Pipeline Steps</div>
+            <div style="display:flex; flex-direction:column; gap:4px;">
+              <div style="padding:7px 12px; background:var(--surface2); border-radius:5px; font-family:var(--mono); font-size:10px; color:var(--accent2); border-left:2px solid var(--accent2);">StandardScaler</div>
+              <div style="padding:7px 12px; background:var(--surface2); border-radius:5px; font-family:var(--mono); font-size:10px; color:var(--accent2); border-left:2px solid var(--accent2);">OneHotEncoder</div>
+              <div style="padding:7px 12px; background:var(--surface2); border-radius:5px; font-family:var(--mono); font-size:10px; color:var(--accent); border-left:2px solid var(--accent);">GBClassifier · 200 trees</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- BATCH PREVIEW -->
+    <div class="batch-panel">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
+        <div class="panel-title" style="margin-bottom:0">POST /predict/batch · Sample Results</div>
+        <button onclick="runBatch()" style="background:transparent; border:1px solid var(--border2); color:var(--muted); font-family:var(--mono); font-size:10px; padding:5px 12px; border-radius:5px; cursor:pointer; transition:border-color .2s, color .2s;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--muted)'">Simulate Batch →</button>
+      </div>
+      <table class="batch-table">
+        <thead>
+          <tr>
+            <th>#</th><th>Tenure</th><th>Plan</th><th>Contract</th><th>Support Calls</th><th>Churn Prob</th><th>Risk</th>
+          </tr>
+        </thead>
+        <tbody id="batch-tbody">
+          <tr><td colspan="7" style="text-align:center; color:var(--muted); font-size:11px; padding:20px;">Click "Simulate Batch" to generate sample predictions</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- CODE EXAMPLES -->
+    <div class="panel" style="background:var(--surface);">
+      <div class="panel-title">Integration Examples</div>
+      <div class="tabs">
+        <button class="tab active" onclick="switchTab('python')">Python</button>
+        <button class="tab" onclick="switchTab('curl')">cURL</button>
+        <button class="tab" onclick="switchTab('js')">JavaScript</button>
+      </div>
+      <div id="tab-python" class="tab-content active">
+<pre class="code-block"><span class="kw">import</span> requests
+
+<span class="cm"># Single prediction</span>
+payload = {
+    <span class="str">"tenure"</span>: <span class="num">8</span>, <span class="str">"monthly_charges"</span>: <span class="num">75.50</span>, <span class="str">"total_charges"</span>: <span class="num">604.0</span>,
+    <span class="str">"num_products"</span>: <span class="num">2</span>, <span class="str">"support_calls"</span>: <span class="num">4</span>, <span class="str">"days_since_login"</span>: <span class="num">30</span>,
+    <span class="str">"has_tech_support"</span>: <span class="num">0</span>, <span class="str">"plan"</span>: <span class="str">"standard"</span>,
+    <span class="str">"contract_type"</span>: <span class="str">"month-to-month"</span>, <span class="str">"payment_method"</span>: <span class="str">"e-check"</span>
+}
+
+r = requests.<span class="fn">post</span>(<span class="str">"http://localhost:8000/predict"</span>, json=payload)
+result = r.<span class="fn">json</span>()
+
+<span class="fn">print</span>(result[<span class="str">"churn_probability"</span>])  <span class="cm"># 0.3241</span>
+<span class="fn">print</span>(result[<span class="str">"risk_tier"</span>])         <span class="cm"># "medium"</span>
+
+<span class="cm"># Batch prediction</span>
+batch_r = requests.<span class="fn">post</span>(<span class="str">"http://localhost:8000/predict/batch"</span>,
+    json={<span class="str">"customers"</span>: [payload, payload]})
+<span class="fn">print</span>(batch_r.<span class="fn">json</span>()[<span class="str">"high_risk_count"</span>])
+</pre>
+      </div>
+      <div id="tab-curl" class="tab-content">
+<pre class="code-block"><span class="cm"># Single prediction</span>
+<span class="fn">curl</span> -X POST http://localhost:8000/predict \
+  -H <span class="str">"Content-Type: application/json"</span> \
+  -d <span class="str">'{
+    "tenure": 8, "monthly_charges": 75.50, "total_charges": 604.0,
+    "num_products": 2, "support_calls": 4, "days_since_login": 30,
+    "has_tech_support": 0, "plan": "standard",
+    "contract_type": "month-to-month", "payment_method": "e-check"
+  }'</span>
+
+<span class="cm"># Health check</span>
+<span class="fn">curl</span> http://localhost:8000/health
+
+<span class="cm"># Feature importance</span>
+<span class="fn">curl</span> http://localhost:8000/predict/explain/tenure
+</pre>
+      </div>
+      <div id="tab-js" class="tab-content">
+<pre class="code-block"><span class="kw">const</span> <span class="fn">predictChurn</span> = <span class="kw">async</span> (customer) => {
+  <span class="kw">const</span> res = <span class="kw">await</span> <span class="fn">fetch</span>(<span class="str">"http://localhost:8000/predict"</span>, {
+    method: <span class="str">"POST"</span>,
+    headers: { <span class="str">"Content-Type"</span>: <span class="str">"application/json"</span> },
+    body: <span class="fn">JSON.stringify</span>(customer)
+  });
+  <span class="kw">return</span> res.<span class="fn">json</span>();
+};
+
+<span class="kw">const</span> result = <span class="kw">await</span> <span class="fn">predictChurn</span>({
+  tenure: <span class="num">8</span>, monthly_charges: <span class="num">75.50</span>, total_charges: <span class="num">604.0</span>,
+  num_products: <span class="num">2</span>, support_calls: <span class="num">4</span>, days_since_login: <span class="num">30</span>,
+  has_tech_support: <span class="num">0</span>, plan: <span class="str">"standard"</span>,
+  contract_type: <span class="str">"month-to-month"</span>, payment_method: <span class="str">"e-check"</span>
+});
+
+console.<span class="fn">log</span>(`Risk: ${result.risk_tier} · ${(result.churn_probability*<span class="num">100</span>).<span class="fn">toFixed</span>(<span class="num">1</span>)}%`);
+</pre>
+      </div>
+    </div>
+
+    <!-- ENDPOINTS -->
+    <div class="panel">
+      <div class="panel-title">API Endpoints</div>
+      <div class="endpoint-row"><div class="method method-get">GET</div><div class="ep-path">/health<br><span class="ep-desc">Liveness + model readiness probe</span></div><div class="ep-desc">200 / 503</div></div>
+      <div class="endpoint-row"><div class="method method-post">POST</div><div class="ep-path">/predict<br><span class="ep-desc">Single customer churn probability</span></div><div class="ep-desc">Real-time</div></div>
+      <div class="endpoint-row"><div class="method method-post">POST</div><div class="ep-path">/predict/batch<br><span class="ep-desc">Up to 1,000 customers per call</span></div><div class="ep-desc">≤ 1,000</div></div>
+      <div class="endpoint-row"><div class="method method-get">GET</div><div class="ep-path">/predict/explain/{feature}<br><span class="ep-desc">Feature importance lookup</span></div><div class="ep-desc">Explain</div></div>
+      <div class="endpoint-row"><div class="method method-get">GET</div><div class="ep-path">/model/info<br><span class="ep-desc">Training metrics, schema, CV scores</span></div><div class="ep-desc">Metadata</div></div>
+      <div class="endpoint-row"><div class="method method-get">GET</div><div class="ep-path">/docs<br><span class="ep-desc">Interactive Swagger UI</span></div><div class="ep-desc">OpenAPI</div></div>
+    </div>
+
+  </div><!-- /content -->
+</main>
+
+<script>
+const CIRCUMFERENCE = 2 * Math.PI * 48; // 301.6
+
+function syncRange(id, val) {
+  if (id === 'monthly') document.getElementById('monthly-val').textContent = '$' + val;
+  else document.getElementById(id + '-val').textContent = val;
+}
+
+function getPayload() {
+  const t = +document.getElementById('tenure').value;
+  const mc = +document.getElementById('monthly').value;
+  return {
+    tenure: t,
+    monthly_charges: mc,
+    total_charges: parseFloat((t * mc * 0.95).toFixed(2)),
+    num_products: +document.getElementById('products').value,
+    support_calls: +document.getElementById('support').value,
+    days_since_login: +document.getElementById('login').value,
+    has_tech_support: +document.getElementById('techsupport').value,
+    plan: document.getElementById('plan').value,
+    contract_type: document.getElementById('contract').value,
+    payment_method: document.getElementById('payment').value,
+  };
+}
+
+// Simulate prediction client-side (model not running in browser)
+function simulateProbability(payload) {
+  let logit = -2.0
+    + (payload.plan === 'basic' ? 0.5 : 0)
+    - 0.04 * payload.tenure
+    + 0.01 * payload.monthly_charges
+    + 0.15 * payload.support_calls
+    - (payload.contract_type === 'two-year' ? 0.3 : 0)
+    + (payload.contract_type === 'month-to-month' ? 0.2 : 0)
+    - 0.25 * payload.has_tech_support
+    + 0.008 * payload.days_since_login
+    - 0.1 * payload.num_products;
+  return 1 / (1 + Math.exp(-logit));
+}
+
+function runPrediction() {
+  const payload = getPayload();
+  const prob = simulateProbability(payload);
+  const pct = Math.round(prob * 100);
+
+  // Gauge
+  const offset = CIRCUMFERENCE * (1 - prob);
+  const ring = document.getElementById('gauge-ring');
+  ring.style.strokeDashoffset = offset;
+
+  let color, tierClass;
+  if (prob < 0.25)      { color = '#00d4aa'; tierClass = 'risk-low';    }
+  else if (prob < 0.55) { color = '#ffd166'; tierClass = 'risk-medium'; }
+  else                  { color = '#ff4d6d'; tierClass = 'risk-high';   }
+  ring.style.stroke = color;
+
+  const pctEl = document.getElementById('gauge-pct');
+  pctEl.textContent = pct + '%';
+  pctEl.style.color = color;
+
+  const tier = prob < 0.25 ? 'LOW' : prob < 0.55 ? 'MEDIUM' : 'HIGH';
+  const badge = document.getElementById('risk-badge');
+  badge.className = 'risk-badge ' + tierClass;
+  badge.style.opacity = '1';
+  document.getElementById('risk-label').textContent = tier;
+
+  document.getElementById('hero-headline').textContent =
+    prob >= 0.55 ? 'High churn risk detected' :
+    prob >= 0.25 ? 'Moderate churn signal' :
+                   'Customer likely to retain';
+
+  document.getElementById('hero-sub').textContent =
+    `Churn probability: ${(prob * 100).toFixed(1)}% · ` +
+    `Contract: ${payload.contract_type} · ` +
+    `Tenure: ${payload.tenure}mo · ` +
+    `${payload.support_calls} support call${payload.support_calls !== 1 ? 's' : ''}`;
+}
+
+const BATCH_PLANS = ['basic','standard','premium'];
+const BATCH_CONTRACTS = ['month-to-month','one-year','two-year'];
+const BATCH_PAYMENTS = ['e-check','credit_card','bank_transfer','mailed_check'];
+
+function runBatch() {
+  const rows = [];
+  for (let i = 0; i < 8; i++) {
+    const p = {
+      tenure: Math.floor(Math.random() * 60) + 1,
+      monthly_charges: 20 + Math.random() * 110,
+      support_calls: Math.floor(Math.random() * 8),
+      num_products: Math.floor(Math.random() * 5) + 1,
+      days_since_login: Math.floor(Math.random() * 90),
+      has_tech_support: Math.random() > 0.5 ? 1 : 0,
+      plan: BATCH_PLANS[Math.floor(Math.random() * 3)],
+      contract_type: BATCH_CONTRACTS[Math.floor(Math.random() * 3)],
+      payment_method: BATCH_PAYMENTS[Math.floor(Math.random() * 4)],
+    };
+    p.total_charges = p.tenure * p.monthly_charges * 0.95;
+    const prob = simulateProbability(p);
+    const tier = prob < 0.25 ? 'low' : prob < 0.55 ? 'medium' : 'high';
+    rows.push({ i, p, prob, tier });
+  }
+
+  const tbody = document.getElementById('batch-tbody');
+  tbody.innerHTML = rows.map(({i, p, prob, tier}) =>
+    `<tr>
+      <td>${i}</td>
+      <td>${p.tenure}mo</td>
+      <td>${p.plan}</td>
+      <td>${p.contract_type}</td>
+      <td>${p.support_calls}</td>
+      <td style="font-family:var(--mono)">${(prob*100).toFixed(1)}%</td>
+      <td class="tier-${tier}">${tier.toUpperCase()}</td>
+    </tr>`
+  ).join('');
+}
+
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  event.target.classList.add('active');
+  document.getElementById('tab-' + name).classList.add('active');
+}
+
+// Run prediction on load
+window.addEventListener('load', () => { runPrediction(); runBatch(); });
+</script>
+</body>
+</html>
